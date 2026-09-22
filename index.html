@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>The Archive — a curved image carousel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+  :root {
+    color-scheme: dark;
+    --ink-950: #08090b;
+    --ink-900: #0d0f12;
+    --ink-600: #2a2f36;
+    --bone-100: #f4f1ea;
+    --bone-500: #a8a296;
+    --brass-400: #d8b25c;
+    --brass-500: #c79a3f;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    background: var(--ink-950);
+    color: var(--bone-100);
+    font-family: "Inter", system-ui, sans-serif;
+    height: 100%;
+  }
+
+  ::selection { background: var(--brass-500); color: var(--ink-950); }
+
+  :focus-visible {
+    outline: 2px solid var(--brass-400);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  .display { font-family: "Fraunces", Georgia, serif; }
+
+  main {
+    max-width: 1152px;
+    margin: 0 auto;
+    padding: 40px 24px 64px;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 8px;
+  }
+
+  .brand { font-family: "Fraunces", Georgia, serif; font-style: italic; font-size: 1.125rem; }
+
+  nav { display: none; gap: 32px; font-size: 0.875rem; color: var(--bone-500); }
+  @media (min-width: 640px) { nav { display: flex; } }
+
+  .hero { max-width: 480px; padding-top: 56px; }
+  .hero h1 {
+    font-size: 2.25rem;
+    line-height: 1.1;
+    font-weight: 500;
+    margin: 0;
+  }
+  @media (min-width: 640px) { .hero h1 { font-size: 2.75rem; } }
+  .hero p {
+    margin-top: 20px;
+    max-width: 380px;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--bone-500);
+  }
+
+  /* ---- carousel ---- */
+  section.carousel { position: relative; margin-top: 56px; }
+
+  .wrap {
+    position: relative;
+    height: 360px;
+    width: 100%;
+    perspective: 1600px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  @media (min-width: 640px) { .wrap { height: 460px; } }
+
+  .stage {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    height: 0;
+    width: 0;
+    transform-style: preserve-3d;
+  }
+
+  .card {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 210px;
+    width: 160px;
+    overflow: hidden;
+    border-radius: 3px;
+    border: 1px solid var(--ink-600);
+    background: var(--ink-900);
+    cursor: grab;
+    padding: 0;
+    backface-visibility: hidden;
+    filter: brightness(0.4) saturate(0.7);
+    transition: filter 500ms ease-out, border-color 500ms ease-out;
+  }
+  @media (min-width: 640px) { .card { height: 300px; width: 220px; } }
+  .card:active { cursor: grabbing; }
+  .card.active { filter: brightness(1) saturate(1); border-color: rgba(199, 154, 63, 0.7); }
+
+  .card img {
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+  }
+
+  .fade { position: absolute; top: 0; bottom: 0; width: 20%; pointer-events: none; }
+  .fade.left { left: 0; background: linear-gradient(to right, var(--ink-950), transparent); }
+  .fade.right { right: 0; background: linear-gradient(to left, var(--ink-950), transparent); }
+
+  .caption-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 40px;
+    padding: 0 24px;
+  }
+  @media (min-width: 640px) { .caption-row { padding: 0 40px; } }
+
+  .counter { display: flex; align-items: baseline; gap: 12px; font-family: "Fraunces", Georgia, serif; }
+  .counter .current { color: var(--brass-400); font-size: 0.875rem; }
+  .counter .total { color: var(--bone-500); font-size: 0.875rem; }
+
+  .caption { text-align: center; }
+  .caption .title { font-family: "Fraunces", Georgia, serif; font-style: italic; font-size: 1.125rem; margin: 0; }
+  .caption .meta { margin: 4px 0 0; font-size: 0.75rem; color: var(--bone-500); }
+
+  .nav-buttons { display: flex; gap: 12px; }
+  .nav-buttons button {
+    height: 36px;
+    width: 36px;
+    border-radius: 999px;
+    border: 1px solid var(--ink-600);
+    background: transparent;
+    color: var(--bone-100);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: border-color 200ms, color 200ms;
+  }
+  .nav-buttons button:hover { border-color: var(--brass-500); color: var(--brass-400); }
+
+  footer {
+    margin-top: 40px;
+    padding: 0 24px;
+    font-size: 0.75rem;
+    color: var(--bone-500);
+  }
+  @media (min-width: 640px) { footer { padding: 0 40px; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="brand">The Archive</span>
+    <nav><span>Works</span><span>Studio</span><span>Contact</span></nav>
+  </header>
+
+  <section class="hero">
+    <h1 class="display">A record of rooms built from light, concrete, and time.</h1>
+    <p>Eight commissions, turned by hand. Drag the frame, use the arrows, or let it drift on its own.</p>
+  </section>
+
+  <section class="carousel">
+    <div class="wrap" id="wrap">
+      <div class="stage" id="stage"></div>
+      <div class="fade left"></div>
+      <div class="fade right"></div>
+    </div>
+
+    <div class="caption-row">
+      <div class="counter">
+        <span class="current" id="counterCurrent">01</span>
+        <span class="total" id="counterTotal">/ 08</span>
+      </div>
+      <div class="caption">
+        <p class="title display" id="captionTitle"></p>
+        <p class="meta" id="captionMeta"></p>
+      </div>
+      <div class="nav-buttons">
+        <button type="button" id="prevBtn" aria-label="Previous image">‹</button>
+        <button type="button" id="nextBtn" aria-label="Next image">›</button>
+      </div>
+    </div>
+  </section>
+
+  <footer>Built with HTML, CSS, and GSAP.</footer>
+</main>
+
+<script>
+  const items = [
+    { id: "01", src: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&q=80&auto=format&fit=crop", title: "Concrete Hollow", meta: "Tadao House · Osaka, 2019" },
+    { id: "02", src: "https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=1200&q=80&auto=format&fit=crop", title: "Stair of Light", meta: "Municipal Library · Porto, 2021" },
+    { id: "03", src: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1200&q=80&auto=format&fit=crop", title: "Glass Corridor", meta: "Fjeld Pavilion · Bergen, 2020" },
+    { id: "04", src: "https://images.unsplash.com/photo-1518005020951-eccb494ad742?w=1200&q=80&auto=format&fit=crop", title: "Vaulted Study", meta: "Archive Wing · Utrecht, 2018" },
+    { id: "05", src: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=1200&q=80&auto=format&fit=crop", title: "Timber Nave", meta: "Chapel of Rest · Åre, 2022" },
+    { id: "06", src: "https://images.unsplash.com/photo-1481253127861-534498168948?w=1200&q=80&auto=format&fit=crop", title: "Cantilever", meta: "Cliffside Studio · Kotor, 2017" },
+    { id: "07", src: "https://images.unsplash.com/photo-1465810343915-c9b1e7ed35db?w=1200&q=80&auto=format&fit=crop", title: "Quiet Atrium", meta: "Gallery Nine · Basel, 2023" },
+    { id: "08", src: "https://images.unsplash.com/photo-1493397212122-2b85dda8106b?w=1200&q=80&auto=format&fit=crop", title: "Threshold", meta: "Guesthouse Lys · Reykjavík, 2021" },
+  ];
+
+  const RADIUS_DESKTOP = 460;
+  const RADIUS_MOBILE = 220;
+  const AUTOPLAY_DURATION = 90;
+  const RESUME_DELAY = 3200;
+  const DRAG_SENSITIVITY = 0.26;
+  const CLICK_THRESHOLD = 6;
+
+  const angleStep = 360 / items.length;
+  const wrap = document.getElementById("wrap");
+  const stage = document.getElementById("stage");
+  const counterCurrent = document.getElementById("counterCurrent");
+  const counterTotal = document.getElementById("counterTotal");
+  const captionTitle = document.getElementById("captionTitle");
+  const captionMeta = document.getElementById("captionMeta");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+
+  counterTotal.textContent = "/ " + String(items.length).padStart(2, "0");
+
+  // Build the cards.
+  const cards = items.map((item, i) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "card";
+    card.setAttribute("aria-label", "Show " + item.title);
+    const img = document.createElement("img");
+    img.src = item.src;
+    img.alt = item.title;
+    img.draggable = false;
+    card.appendChild(img);
+    card.addEventListener("click", () => {
+      if (draggedFlag) return;
+      goTo(i);
+    });
+    stage.appendChild(card);
+    return card;
+  });
+
+  let activeIndex = 0;
+  let draggedFlag = false;
+  let autoplayTween = null;
+  let resumeTimer = null;
+
+  function positionCards() {
+    const radius = window.innerWidth < 640 ? RADIUS_MOBILE : RADIUS_DESKTOP;
+    cards.forEach((card, i) => {
+      const angle = i * angleStep;
+      card.style.transform = `translate(-50%, -50%) rotateY(${angle}deg) translateZ(${radius}px)`;
+    });
+  }
+
+  function startAutoplay() {
+    if (autoplayTween) autoplayTween.kill();
+    autoplayTween = gsap.to(stage, {
+      rotationY: "+=360",
+      duration: AUTOPLAY_DURATION,
+      ease: "none",
+      repeat: -1,
+    });
+  }
+
+  function scheduleResume() {
+    if (resumeTimer) clearTimeout(resumeTimer);
+    resumeTimer = setTimeout(startAutoplay, RESUME_DELAY);
+  }
+
+  function snapTo(approxRotation) {
+    const snapped = Math.round(approxRotation / angleStep) * angleStep;
+    gsap.to(stage, { rotationY: snapped, duration: 0.9, ease: "power3.out" });
+    scheduleResume();
+  }
+
+  function goTo(index) {
+    if (autoplayTween) autoplayTween.pause();
+    if (resumeTimer) clearTimeout(resumeTimer);
+    const currentRot = Number(gsap.getProperty(stage, "rotationY"));
+    const desiredMod = (((-index * angleStep) % 360) + 360) % 360;
+    const currentMod = ((currentRot % 360) + 360) % 360;
+    let diff = desiredMod - currentMod;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    gsap.to(stage, { rotationY: currentRot + diff, duration: 0.9, ease: "power3.out" });
+    scheduleResume();
+  }
+
+  function updateCaption(idx) {
+    activeIndex = idx;
+    cards.forEach((card, i) => card.classList.toggle("active", i === idx));
+    counterCurrent.textContent = String(idx + 1).padStart(2, "0");
+    captionTitle.textContent = items[idx].title;
+    captionMeta.textContent = items[idx].meta;
+  }
+  updateCaption(0);
+
+  gsap.ticker.add(() => {
+    const rot = Number(gsap.getProperty(stage, "rotationY"));
+    const raw = (((-rot / angleStep) % items.length) + items.length) % items.length;
+    const idx = Math.round(raw) % items.length;
+    if (idx !== activeIndex) updateCaption(idx);
+  });
+
+  // Drag handling.
+  const drag = { active: false, startX: 0, startRotation: 0, lastX: 0, lastT: 0, velocity: 0, moved: 0 };
+
+  wrap.addEventListener("pointerdown", (e) => {
+    if (autoplayTween) autoplayTween.pause();
+    if (resumeTimer) clearTimeout(resumeTimer);
+    draggedFlag = false;
+    drag.active = true;
+    drag.startX = e.clientX;
+    drag.startRotation = Number(gsap.getProperty(stage, "rotationY"));
+    drag.lastX = e.clientX;
+    drag.lastT = performance.now();
+    drag.velocity = 0;
+    drag.moved = 0;
+    if (e.target.setPointerCapture) e.target.setPointerCapture(e.pointerId);
+  });
+
+  wrap.addEventListener("pointermove", (e) => {
+    if (!drag.active) return;
+    const dx = e.clientX - drag.startX;
+    drag.moved = Math.max(drag.moved, Math.abs(dx));
+    if (drag.moved > CLICK_THRESHOLD) draggedFlag = true;
+    const now = performance.now();
+    const dt = now - drag.lastT;
+    if (dt > 0) drag.velocity = ((e.clientX - drag.lastX) / dt) * DRAG_SENSITIVITY * 16.6667;
+    drag.lastX = e.clientX;
+    drag.lastT = now;
+    gsap.set(stage, { rotationY: drag.startRotation + dx * DRAG_SENSITIVITY });
+  });
+
+  function endDrag() {
+    if (!drag.active) return;
+    drag.active = false;
+    const currentRot = Number(gsap.getProperty(stage, "rotationY"));
+    snapTo(currentRot + drag.velocity * 10);
+  }
+  wrap.addEventListener("pointerup", endDrag);
+  wrap.addEventListener("pointercancel", endDrag);
+
+  prevBtn.addEventListener("click", () => goTo(activeIndex - 1));
+  nextBtn.addEventListener("click", () => goTo(activeIndex + 1));
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") goTo(activeIndex - 1);
+    if (e.key === "ArrowRight") goTo(activeIndex + 1);
+  });
+
+  window.addEventListener("resize", positionCards);
+
+  positionCards();
+  startAutoplay();
+</script>
+</body>
+</html>
